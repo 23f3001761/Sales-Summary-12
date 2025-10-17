@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sales Summary 12</title>
+  <!-- Bootstrap 5 (latest stable) from jsDelivr -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5/dist/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body>
+  <div class="container py-5">
+    <h1 class="text-center mb-4">Sales Summary</h1>
+
+    <div class="row justify-content-center">
+      <div class="col-md-6">
+        <div class="card text-center">
+          <div class="card-body">
+            <h5 class="card-title mb-3">Total Sales</h5>
+            <p id="total-sales" class="display-4 fw-normal mb-0">0</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="status" class="text-center text-muted mt-3"></div>
+  </div>
+
+  <!-- Bootstrap 5 JS (bundle includes Popper) from jsDelivr -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    // Set the required title
+    document.title = 'Sales Summary 12';
+
+    // Simple CSV line parser that handles quoted fields
+    function parseCSVLine(line) {
+      const result = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+            cur += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (ch === ',' && !inQuotes) {
+          result.push(cur);
+          cur = '';
+        } else {
+          cur += ch;
+        }
+      }
+      result.push(cur);
+      return result;
+    }
+
+    // Parse CSV text and sum the "Sales(Rs.)" column
+    function sumSalesFromCSV(csvText) {
+      if (!csvText) return 0;
+      const lines = csvText.split(/\r?\n/).filter(l => l.trim().length > 0);
+      if (lines.length === 0) return 0;
+
+      const headers = parseCSVLine(lines[0]);
+      // Try to locate the "Sales(Rs.)" column
+      let idx = -1;
+      for (let i = 0; i < headers.length; i++) {
+        const h = headers[i].trim();
+        if (h === 'Sales(Rs.)' || h.toLowerCase() === 'sales(rs.)' || h.toLowerCase().includes('sales')) {
+          idx = i;
+          break;
+        }
+      }
+
+      // If not found, try a fuzzy match
+      if (idx === -1) {
+        for (let i = 0; i < headers.length; i++) {
+          if (headers[i].toLowerCase().includes('sales')) {
+            idx = i;
+            break;
+          }
+        }
+      }
+
+      if (idx === -1) return 0;
+
+      let total = 0;
+      for (let i = 1; i < lines.length; i++) {
+        const row = parseCSVLine(lines[i]);
+        if (row.length <= idx) continue;
+        const val = row[idx].trim();
+        // Remove any non-numeric characters except minus and dot
+        const numeric = parseFloat(val.replace(/[^0-9.\-]/g, ''));
+        if (!isNaN(numeric)) total += numeric;
+      }
+      return total;
+    }
+
+    async function loadData() {
+      try {
+        const res = await fetch('data.csv', { cache: 'reload' });
+        if (!res.ok) throw new Error('Failed to fetch data.csv');
+        const text = await res.text();
+        const total = sumSalesFromCSV(text);
+        const display = total.toLocaleString(undefined, { maximumFractionDigits: 2 });
+        const el = document.getElementById('total-sales');
+        if (el) el.textContent = display;
+      } catch (err) {
+        const status = document.getElementById('status');
+        if (status) status.textContent = 'Error loading data: ' + (err?.message ?? 'Unknown error');
+      }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      const status = document.getElementById('status');
+      if (status) status.textContent = 'Loading data...';
+      loadData().then(() => {
+        if (status) status.textContent = '';
+      });
+    });
+  </script>
+</body>
+</html>
