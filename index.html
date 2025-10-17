@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta content="width=device-width, initial-scale=1" name="viewport"/>
   <title>Sales Summary 12</title>
   <!-- Bootstrap 5 (latest stable) from jsDelivr -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5/dist/css/bootstrap.min.css" rel="stylesheet"/>
@@ -12,158 +12,149 @@
 </head>
 <body>
   <div class="container">
-    <h1 class="mb-4">Sales Summary 12</h1>
-
-    <div class="row mb-4">
-      <div class="col">
-        <div class="card border-primary">
-          <div class="card-body">
-            <h5 class="card-title">Total Sales</h5>
-            <p id="total-sales" class="card-text display-6 fw-semibold">0</p>
-          </div>
-        </div>
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-4">
+      <h1 class="h4 mb-0">Sales Summary 12</h1>
+      <div class="ms-2">
+        <label for="currency-picker" class="form-label visually-hidden">Currency</label>
+        <select id="currency-picker" class="form-select">
+          <option value="USD" selected>USD</option>
+          <option value="EUR">EUR</option>
+          <option value="JPY">JPY</option>
+          <option value="GBP">GBP</option>
+          <option value="AUD">AUD</option>
+        </select>
       </div>
     </div>
 
-    <div class="row">
-      <div class="col-12">
-        <h2 class="h5 mb-3">Product Sales</h2>
-        <table id="product-sales" class="table table-striped table-bordered">
-          <thead class="table-dark">
-            <tr>
-              <th scope="col">Product</th>
-              <th scope="col">Total Sales (Rs.)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <!-- Rows will be injected here -->
-          </tbody>
-        </table>
+    <div class="card">
+      <div class="card-body">
+        <div class="display-4 fw-bold" id="total-sales">0.00</div>
+        <div class="text-muted">Total in <span id="total-currency">USD</span></div>
       </div>
     </div>
   </div>
 
   <script>
-    (function(){
-      const totalEl = document.getElementById('total-sales');
-      const tableBody = document.querySelector('#product-sales tbody');
-
-      function splitLine(line){
-        const parts = [];
-        let cur = '';
-        let inQ = false;
-        for (let i = 0; i < line.length; i++){
-          const ch = line[i];
-          if (ch === '"') {
-            if (inQ && line[i+1] === '"') { cur += '"'; i++; }
-            else inQ = !inQ;
-          } else if (ch === ',' && !inQ) {
-            parts.push(cur);
-            cur = '';
-          } else {
-            cur += ch;
-          }
-        }
-        parts.push(cur);
-        return parts;
-      }
-
-      function parseCSV(text){
-        // Use the required line splitting method
-        const lines = text.trim().split(/\r?\n/);
-        if (lines.length === 0) return [];
-        const header = splitLine(lines[0]);
-        const rows = [];
-        for (let i = 1; i < lines.length; i++){
-          const line = lines[i];
-          if (!line.trim()) continue;
-          const values = splitLine(line);
-          const obj = {};
-          for (let j = 0; j < header.length; j++){
-            const key = header[j] ?? ('col' + j);
-            const val = values[j] ?? '';
-            obj[key] = val;
-          }
-          rows.push(obj);
-        }
-        return rows;
-      }
-
-      async function loadData(){
-        try {
-          const resp = await fetch('data.csv');
-          if (!resp.ok) throw new Error('Failed to fetch data.csv');
-          const text = await resp.text();
-
-          const rows = parseCSV(text);
-
-          // Identify keys
-          let productKey = null;
-          let salesKey = null;
-          if (rows.length > 0){
-            const first = rows[0];
-            for (const k of Object.keys(first)){
-              const lk = k.toLowerCase();
-              if (lk === 'product') productKey = k;
-              if (lk.includes('sales')) salesKey = k;
-            }
-          }
-
-          if (!productKey) {
-            // Fallback: first column is product
-            productKey = Object.keys(rows[0])[0];
-          }
-          if (!salesKey) {
-            // No sales column found
-            salesKey = Object.keys(rows[0]).find(k => k.toLowerCase().includes('sales'));
-          }
-
-          const perProduct = new Map();
-          let total = 0;
-
-          for (const r of rows){
-            const product = (r[productKey] ?? '').toString() || '';
-            const raw = salesKey ? (r[salesKey] ?? '') : '0';
-            // extract numeric value
-            const sale = parseFloat(raw.toString().replace(/[^0-9.\-]/g, '')) || 0;
-            total += sale;
-            if (perProduct.has(product)){
-              perProduct.set(product, perProduct.get(product) + sale);
-            } else {
-              perProduct.set(product, sale);
-            }
-          }
-
-          totalEl.textContent = total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
-          // Render product table
-          tableBody.innerHTML = '';
-          const items = Array.from(perProduct.entries())
-            .sort((a,b) => String(a[0]).localeCompare(String(b[0])));
-          for (const [prod, val] of items){
-            const tr = document.createElement('tr');
-            const tdProd = document.createElement('td');
-            tdProd.textContent = prod;
-            const tdVal = document.createElement('td');
-            tdVal.textContent = val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-            tr.appendChild(tdProd);
-            tr.appendChild(tdVal);
-            tableBody.appendChild(tr);
-          }
-
-        } catch (err){
-          console.error(err);
-          totalEl.textContent = '0';
+    // Simple CSV line parser that handles quoted fields
+    function parseCSVLine(line) {
+      const res = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; } else { inQuotes = !inQuotes; }
+        } else if (ch === ',' && !inQuotes) {
+          res.push(cur);
+          cur = '';
+        } else {
+          cur += ch;
         }
       }
+      res.push(cur);
+      return res.map(v => v.trim().replace(/^"(.*)"$/,'$1'));
+    }
 
+    // Sum the Sales(Rs.) column from data.csv
+    function sumSalesFromCSV(text) {
+      if (!text) return 0;
+      const lines = text.split(/\r?\n/);
+      // Find first non-empty line for header
+      let headerIndex = lines.findIndex(l => l.trim() !== '');
+      if (headerIndex < 0) return 0;
+      const header = parseCSVLine(lines[headerIndex]);
+      let idxSales = header.findIndex(h => h.trim() === 'Sales(Rs.)');
+      // Fallback: if exact header not found, try to use a column that contains 'Sales'
+      if (idxSales < 0) {
+        idxSales = header.findIndex(h => /Sales/i.test(h));
+      }
+      if (idxSales < 0) return 0;
+
+      let total = 0;
+      for (let i = headerIndex + 1; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line.trim()) continue;
+        const cols = parseCSVLine(line);
+        if (cols.length > idxSales) {
+          const v = parseFloat(cols[idxSales]);
+          if (!isNaN(v)) total += v;
+        }
+      }
+      return total;
+    }
+
+    let totalRs = 0;
+    let ratesMap = null;
+    let currentCurrency = 'USD';
+    let currencyPickerEl, totalSalesEl, totalCurrencyEl;
+
+    function getRateForCurrency(cur) {
+      if (!ratesMap) return null;
+      // Direct mapping
+      const direct = ratesMap[cur];
+      if (typeof direct === 'number') return direct;
+      // Nested structures, e.g., { "USD": { "rate": 0.012 } }
+      if (ratesMap[cur] && typeof ratesMap[cur].rate === 'number') return ratesMap[cur].rate;
+      // Common alternative: { "rates": { "USD": 0.012, ... } }
+      if (ratesMap.rates && typeof ratesMap.rates[cur] === 'number') return ratesMap.rates[cur];
+      return null;
+    }
+
+    function updateConvertedDisplay() {
+      const rate = getRateForCurrency(currentCurrency);
+      let converted = totalRs;
+      if (typeof rate === 'number') converted = totalRs * rate;
+      // Format with two decimals and comma separators
+      const formatted = converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      totalSalesEl.textContent = formatted;
+      totalCurrencyEl.textContent = currentCurrency;
+    }
+
+    async function loadDataAndRates() {
+      // Load data.csv
+      try {
+        const dataRes = await fetch('data.csv');
+        const text = await dataRes.text();
+        totalRs = sumSalesFromCSV(text);
+      } catch (e) {
+        totalRs = 0;
+      }
+      updateConvertedDisplay();
+
+      // Load rates.json
+      try {
+        const ratesRes = await fetch('rates.json');
+        const json = await ratesRes.json();
+        ratesMap = json;
+      } catch (e) {
+        ratesMap = null;
+      }
+      // After loading rates, update display to reflect potential conversion
+      updateConvertedDisplay();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      currencyPickerEl = document.getElementById('currency-picker');
+      totalSalesEl = document.getElementById('total-sales');
+      totalCurrencyEl = document.getElementById('total-currency');
+
+      // Initialize current currency with dropdown value
+      if (currencyPickerEl) {
+        currentCurrency = currencyPickerEl.value || 'USD';
+        currencyPickerEl.addEventListener('change', (e) => {
+          currentCurrency = e.target.value;
+          updateConvertedDisplay();
+        });
+      }
+
+      // Set the page title (as per original brief)
       document.title = 'Sales Summary 12';
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', loadData);
-      } else {
-        loadData();
-      }
-    })();
+
+      // Load data and rates, then render
+      loadDataAndRates().then(() => {
+        updateConvertedDisplay();
+      });
+    });
   </script>
 </body>
 </html>

@@ -5,7 +5,7 @@
 This web application is automatically generated and updated by a large language model (LLM) based on the following detailed user-provided brief : 
 
 ```
-Add a Bootstrap table #product-sales that lists each product with its total sales and keeps #total-sales accurate after render.
+Introduce a currency select #currency-picker that converts the computed total using rates.json from attachments and mirrors the active currency inside #total-currency.
 
 ```
 The system analyzes the brief and produces the complete source code for a minimal, responsive, and functional single-page website, built using HTML, CSS, and JavaScript. The app may include additional assets such as images or data files necessary for its features.  
